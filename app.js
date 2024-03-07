@@ -174,30 +174,30 @@ function updateTrack(what, socket) {
             }
             break
         case 'PICT':
-                const url = `img/${track.albumId}.${track.artwork.format}`;
-                data = {
-                    'url': url,
-                    'is2x': track.artwork.is2x
-                }
-                break
-        case 'PICTmeta':
-            if (currentAlbum === prevAlbum) {
-                if (!track.artwork.palette.backgroundColor && imgPath) {
-                    if (debug) console.log("Recrée la palette à partir de:", `${imgPath}`)
-                    extractPalette(imgPath)
-                };
+            const url = `img/${track.albumId}.${track.artwork.format}`;
+            data = {
+                'url': url,
+                'is2x': track.artwork.is2x
             }
+            break
+        case 'PICTmeta':
+            // if (currentAlbum === prevAlbum) {
+            //     if (!track.artwork.palette.backgroundColor && imgPath) {
+            //         if (debug) console.log("Recrée la palette à partir de:", `${imgPath}`)
+            //         extractPalette(imgPath)
+            //     };
+            // }
             data = {
                 'dimensions': {
                     'width': track.artwork.dimensions.width,
                     'height': track.artwork.dimensions.height
                 },
-                'palette': {
-                    'backgroundColor': track.artwork.palette.backgroundColor,
-                    'primaryColor': track.artwork.palette.primaryColor,
-                    'secondaryColor': track.artwork.palette.secondaryColor,
-                    'spanColorContrast': track.artwork.palette.spanColorContrast
-                }
+                // 'palette': {
+                //     'backgroundColor': track.artwork.palette.backgroundColor,
+                //     'primaryColor': track.artwork.palette.primaryColor,
+                //     'secondaryColor': track.artwork.palette.secondaryColor,
+                //     'spanColorContrast': track.artwork.palette.spanColorContrast
+                // }
             }
             break
         case 'position':
@@ -246,64 +246,64 @@ function updateTrack(what, socket) {
 
 function extractPalette(thePath) {
     let bgColor, primaryColor, secondaryColor;
-    imageColors.extract(thePath, 5, (err, colors) => {
-        if (err && debug) console.error('extractPalette', err)
-        // Sélection des couleurs
-        // Note: la fonction de calcul de luminance d'imageColors est moins complète,
-        // donc on va recalculer les valeurs avec
-        // https://www.w3.org/TR/2008/REC-WCAG20-20081211/#relativeluminancedef
+    // imageColors.extract(thePath, 5, (err, colors) => {
+    //     if (err && debug) console.error('extractPalette', err)
+    //     // Sélection des couleurs
+    //     // Note: la fonction de calcul de luminance d'imageColors est moins complète,
+    //     // donc on va recalculer les valeurs avec
+    //     // https://www.w3.org/TR/2008/REC-WCAG20-20081211/#relativeluminancedef
 
-        // 1) background-color : couleur qui a le pourcentage le plus grand
-        const byPercent = colors.sort((a, b) => b.percent - a.percent);
-        bgColor = byPercent[0];
-        bgColor.lumi = colorLuminance(Object.values(bgColor.rgb));
+    //     // 1) background-color : couleur qui a le pourcentage le plus grand
+    //     const byPercent = colors.sort((a, b) => b.percent - a.percent);
+    //     bgColor = byPercent[0];
+    //     bgColor.lumi = colorLuminance(Object.values(bgColor.rgb));
 
-        if (bgColor.lumi > 0.75) {
-            // la couleur de fond est très claire: l'année de l'album s'affiche dans la même couleur que le titre
-            track.artwork.palette.spanColorContrast = true;
-        }
-        track.artwork.palette.backgroundLuminance = bgColor.lumi;
-        track.artwork.palette.backgroundColor = toHslString(bgColor.hsl);
+    //     if (bgColor.lumi > 0.75) {
+    //         // la couleur de fond est très claire: l'année de l'album s'affiche dans la même couleur que le titre
+    //         track.artwork.palette.spanColorContrast = true;
+    //     }
+    //     track.artwork.palette.backgroundLuminance = bgColor.lumi;
+    //     track.artwork.palette.backgroundColor = toHslString(bgColor.hsl);
 
-        // Couleurs restantes
-        let remainingColors = colors.filter(c => c.hex !== bgColor.hex);
-        // ajoute une propriété `contrast ratio` à chaque couleur (comparaison avec bgColor)
-        remainingColors.forEach(c => c.lumi = colorLuminance(Object.values(c.rgb)));
-        remainingColors.forEach(c => c.cr = calcContrastRatio(bgColor.lumi, c.lumi));
-        remainingColors.sort((a, b) => b.cr - a.cr); // tri sur le contrast ratio
+    //     // Couleurs restantes
+    //     let remainingColors = colors.filter(c => c.hex !== bgColor.hex);
+    //     // ajoute une propriété `contrast ratio` à chaque couleur (comparaison avec bgColor)
+    //     remainingColors.forEach(c => c.lumi = colorLuminance(Object.values(c.rgb)));
+    //     remainingColors.forEach(c => c.cr = calcContrastRatio(bgColor.lumi, c.lumi));
+    //     remainingColors.sort((a, b) => b.cr - a.cr); // tri sur le contrast ratio
 
-        // 2) titre
-        primaryColor = remainingColors[0];
-        if (primaryColor.cr && primaryColor.cr < 3) {
-            // réglage de la couleur
-            // if (debug) console.log("couleur:", primaryColor, "background:", bgColor, "cr:", primaryColor.cr);
-            newPrimaryColor = tuneColor(primaryColor, bgColor);
-            if (debug) console.log("New primary color:", newPrimaryColor)
-            track.artwork.palette.primaryColor = newPrimaryColor;
-        } else {
-            track.artwork.palette.primaryColor = toHslString(primaryColor.hsl);
-        }
+    //     // 2) titre
+    //     primaryColor = remainingColors[0];
+    //     if (primaryColor.cr && primaryColor.cr < 3) {
+    //         // réglage de la couleur
+    //         // if (debug) console.log("couleur:", primaryColor, "background:", bgColor, "cr:", primaryColor.cr);
+    //         newPrimaryColor = tuneColor(primaryColor, bgColor);
+    //         if (debug) console.log("New primary color:", newPrimaryColor)
+    //         track.artwork.palette.primaryColor = newPrimaryColor;
+    //     } else {
+    //         track.artwork.palette.primaryColor = toHslString(primaryColor.hsl);
+    //     }
 
-        // 3) artiste/album
-        if (remainingColors[1]) {
-            secondaryColor = remainingColors[1];
-        } else {
-            // Pas assez de couleurs, on utilise la même que pour le titre
-            secondaryColor = remainingColors[0];
-        }
-        if (secondaryColor.cr && secondaryColor.cr < 3) {
-            // réglage de la couleur
-            // if (debug) console.log("couleur:", secondaryColor, "background:", bgColor, "cr:", secondaryColor.cr)
-            newSecondaryColor = tuneColor(secondaryColor, bgColor);
-            if (debug) console.log("New secondary color", newSecondaryColor)
-            track.artwork.palette.secondaryColor = newSecondaryColor;
-        } else {
-            track.artwork.palette.secondaryColor = toHslString(secondaryColor.hsl);
-        }
+    //     // 3) artiste/album
+    //     if (remainingColors[1]) {
+    //         secondaryColor = remainingColors[1];
+    //     } else {
+    //         // Pas assez de couleurs, on utilise la même que pour le titre
+    //         secondaryColor = remainingColors[0];
+    //     }
+    //     if (secondaryColor.cr && secondaryColor.cr < 3) {
+    //         // réglage de la couleur
+    //         // if (debug) console.log("couleur:", secondaryColor, "background:", bgColor, "cr:", secondaryColor.cr)
+    //         newSecondaryColor = tuneColor(secondaryColor, bgColor);
+    //         if (debug) console.log("New secondary color", newSecondaryColor)
+    //         track.artwork.palette.secondaryColor = newSecondaryColor;
+    //     } else {
+    //         track.artwork.palette.secondaryColor = toHslString(secondaryColor.hsl);
+    //     }
 
-        updateTrack('PICT')
-        updateTrack('PICTmeta')
-    })
+    // })
+    updateTrack('PICT')
+    updateTrack('PICTmeta')
 }
 async function getImageSize(img) {
     return new Promise((resolve, reject) => {
@@ -337,7 +337,7 @@ async function processPICT(buf) {
         try {
             const img = gm(buf);
             const format = await getImageFormat(img);
-            const {width, height} = await getImageSize(img);
+            const { width, height } = await getImageSize(img);
             if (debug) console.log(`image: ${width} x ${height} (${format})`);
             track.artwork.dimensions.width = width;
             track.artwork.dimensions.height = height;
@@ -367,7 +367,7 @@ async function processPICT(buf) {
                 track.artwork.dimensions.height = newHeight;
                 if (debug) console.log("Image cached.")
                 extractPalette(imgPath);
-            }else{
+            } else {
                 track.artwork.is2x = false;
                 if (width > 512) {
                     newHeight = await generateImg(img, 512, imgPath)
@@ -375,7 +375,7 @@ async function processPICT(buf) {
                     track.artwork.dimensions.height = newHeight;
                     if (debug) console.log("Image cached.")
                     extractPalette(imgPath);
-                }else{
+                } else {
                     img.write(imgPath, (err, data) => {
                         if (err && debug) console.error(`erreur écriture ${imgPath}, ${err}`)
                         if (debug) console.log("Image cached.")
@@ -392,7 +392,7 @@ async function processPICT(buf) {
         if (fs.existsSync(imgPath)) {
             updateTrack('PICT');
             updateTrack('PICTmeta');
-        }else{
+        } else {
             updateTrack('noPICT');
         }
     }
